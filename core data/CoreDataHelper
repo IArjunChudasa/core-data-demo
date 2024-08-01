@@ -1,1 +1,92 @@
 
+import UIKit
+import CoreData
+
+class CoreDataHelper {
+    
+    static let shared = CoreDataHelper()
+    
+    private init() {}
+    
+    // MARK: - Core Data Stack
+    private var persistentContainer: NSPersistentContainer = {
+        let container = NSPersistentContainer(name: "YourModelName")
+        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
+            if let error = error as NSError? {
+                fatalError("Unresolved error \(error), \(error.userInfo)")
+            }
+        })
+        return container
+    }()
+    
+    var context: NSManagedObjectContext {
+        return persistentContainer.viewContext
+    }
+    
+    // MARK: - Core Data Operations
+    
+    func createUser(name: String, email: String, mobile: String) {
+        let userEntity = NSEntityDescription.entity(forEntityName: "Users", in: context)!
+        let user = NSManagedObject(entity: userEntity, insertInto: context)
+        user.setValue(name, forKey: "name")
+        user.setValue(email, forKey: "email")
+        user.setValue(mobile, forKey: "mobile")
+        
+        saveContext()
+    }
+    
+    func retrieveUsers() -> [NSManagedObject] {
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Users")
+        
+        do {
+            let result = try context.fetch(fetchRequest)
+            return result as! [NSManagedObject]
+        } catch {
+            print("Failed to fetch users: \(error)")
+            return []
+        }
+    }
+    
+    func deleteUser(name: String) {
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Users")
+        fetchRequest.predicate = NSPredicate(format: "name = %@", name)
+        
+        do {
+            let objects = try context.fetch(fetchRequest)
+            if let objectToDelete = objects.first as? NSManagedObject {
+                context.delete(objectToDelete)
+                saveContext()
+            }
+        } catch {
+            print("Failed to delete user: \(error)")
+        }
+    }
+    
+    func updateUser(oldName: String, newName: String, email: String, mobile: String) {
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Users")
+        fetchRequest.predicate = NSPredicate(format: "name = %@", oldName)
+        
+        do {
+            let objects = try context.fetch(fetchRequest)
+            if let objectToUpdate = objects.first as? NSManagedObject {
+                objectToUpdate.setValue(newName, forKey: "name")
+                objectToUpdate.setValue(email, forKey: "email")
+                objectToUpdate.setValue(mobile, forKey: "mobile")
+                saveContext()
+            }
+        } catch {
+            print("Failed to update user: \(error)")
+        }
+    }
+    
+    private func saveContext() {
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                let nserror = error as NSError
+                fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
+            }
+        }
+    }
+}
